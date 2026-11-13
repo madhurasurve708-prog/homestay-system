@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import {
   ArrowRight,
-  BedDouble,
-  CalendarCheck2,
   CalendarDays,
   CalendarPlus,
   CheckCircle2,
   DoorClosed,
   DoorOpen,
   IndianRupee,
-  LogIn,
-  LogOut,
   MapPin,
   Phone,
   ReceiptIndianRupee,
@@ -61,7 +57,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   // Filter state for the 15 rooms grid
   const [roomFilter, setRoomFilter] = useState<'ALL' | 'AVAILABLE' | 'AC' | 'NON_AC'>('ALL');
 
-  const totalRooms = rooms.length; // 15
   const availableRooms = rooms.filter((r) => r.status === 'Available').length;
   const bookedRooms = rooms.filter((r) => r.status === 'Booked').length;
   const occupiedRooms = rooms.filter((r) => r.status === 'Occupied').length;
@@ -86,7 +81,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       return sum + (bl.amountPaid > 0 ? bl.amountPaid : totals.grandTotal);
     }, 0);
 
-  const occupancyPct = Math.round((occupiedRooms / Math.max(1, totalRooms)) * 100);
   const acRooms = rooms.filter((r) => r.category === 'AC');
   const nonAcRooms = rooms.filter((r) => r.category === 'Non-AC');
   const acOccupied = acRooms.filter((r) => r.status === 'Occupied').length;
@@ -117,417 +111,229 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     return true;
   });
 
-  const summaryCards = [
-    {
-      label: 'All Rooms',
-      value: String(totalRooms),
-      sub: 'Rooms 101 to 115',
-      icon: BedDouble,
-      tone: 'bg-stone-100 text-stone-900 border-stone-300',
-    },
-    {
-      label: 'Empty Rooms',
-      value: String(availableRooms),
-      sub: 'Free to give right now',
-      icon: DoorOpen,
-      tone: 'bg-emerald-50 text-emerald-950 border-emerald-300',
-    },
-    {
-      label: 'Guests in Room',
-      value: String(occupiedRooms),
-      sub: `${occupancyPct}% full today`,
-      icon: DoorClosed,
-      tone: 'bg-sky-50 text-sky-950 border-sky-300',
-    },
-    {
-      label: 'Advance Booked',
-      value: String(bookedRooms),
-      sub: 'Coming on later dates',
-      icon: CalendarCheck2,
-      tone: 'bg-amber-50 text-amber-950 border-amber-300',
-    },
-    {
-      label: 'Arriving Today',
-      value: String(todaysCheckIns),
-      sub: 'Check-ins today',
-      icon: LogIn,
-      tone: 'bg-teal-50 text-teal-950 border-teal-300',
-    },
-    {
-      label: 'Leaving Today',
-      value: String(todaysCheckOuts),
-      sub: 'Check-outs today',
-      icon: LogOut,
-      tone: 'bg-orange-50 text-orange-950 border-orange-300',
-    },
-    {
-      label: "Today's Bills",
-      value: formatINR(todaysRevenue),
-      sub: 'Sample bill total',
-      icon: IndianRupee,
-      tone: 'bg-emerald-50 text-emerald-950 border-emerald-300',
-    },
-  ];
+  const groundFloorRooms = displayedRooms.filter((r) => r.floor.toLowerCase().includes('ground'));
+  const firstFloorRooms = displayedRooms.filter((r) => !r.floor.toLowerCase().includes('ground'));
 
   return (
     <div className="space-y-6">
-      {/* Friendly Notice Banner in Simple English */}
+      {/* Friendly Guide Banner */}
       <DemoNoticeBanner
         title="Sunshine Home Stay • Daily Overview"
-        message="This is your main dashboard. You can quickly see which rooms are empty, check in arriving guests, add Malvani food to bills, and print receipts."
+        message="Good day! Here is your daily hotel overview. You can see which rooms are empty right now, who is staying inside, and add food or print bills with one click."
       />
 
-      {/* 3 Large Daily Action Buttons (Senior-Friendly, High Contrast) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Top 3 Big Numbers (Ultra-Readable, High Contrast) */}
+      <section aria-label="Key Hotel Numbers">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {/* Card 1: Empty Rooms */}
+          <div className="flex items-center gap-4 rounded-3xl border-2 border-emerald-300 bg-emerald-50/90 p-5 shadow-xs">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
+              <DoorOpen className="h-9 w-9" />
+            </span>
+            <div>
+              <p className="text-3xl sm:text-4xl font-black text-emerald-950">
+                {availableRooms} Empty
+              </p>
+              <p className="text-sm font-bold text-emerald-900 mt-0.5">
+                Rooms ready to give to guests right now
+              </p>
+            </div>
+          </div>
+
+          {/* Card 2: Guests Inside */}
+          <div className="flex items-center gap-4 rounded-3xl border-2 border-sky-300 bg-sky-50/90 p-5 shadow-xs">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-sm">
+              <DoorClosed className="h-9 w-9" />
+            </span>
+            <div>
+              <p className="text-3xl sm:text-4xl font-black text-sky-950">
+                {occupiedRooms} Full
+              </p>
+              <p className="text-sm font-bold text-sky-900 mt-0.5">
+                Rooms with guests staying inside today
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: Today's Bills */}
+          <div className="flex items-center gap-4 rounded-3xl border-2 border-amber-300 bg-amber-50/90 p-5 shadow-xs">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-amber-600 text-white shadow-sm">
+              <IndianRupee className="h-9 w-9" />
+            </span>
+            <div>
+              <p className="text-3xl sm:text-4xl font-black text-amber-950">
+                {formatINR(todaysRevenue)}
+              </p>
+              <p className="text-sm font-bold text-amber-900 mt-0.5">
+                Today&apos;s bills collected so far
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Small Sub-Summary Bar */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-5 py-3 text-xs sm:text-sm text-stone-700 font-medium">
+          <span>
+            Total Hotel Rooms: <strong>15 Rooms (101 to 115)</strong>
+          </span>
+          <span>
+            Advance Booked: <strong>{bookedRooms} Rooms</strong>
+          </span>
+          <span>
+            Arriving Today: <strong>{todaysCheckIns}</strong> • Leaving Today: <strong>{todaysCheckOuts}</strong>
+          </span>
+          <span>
+            Repair/Cleaning: <strong>{maintenanceRooms}</strong>
+          </span>
+        </div>
+      </section>
+
+      {/* 2 Big Main Daily Action Buttons */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => onOpenNewBooking()}
-          className="group flex items-center justify-between rounded-2xl border-2 border-stone-200 bg-white p-5 text-left shadow-sm transition hover:border-[#0f292e] hover:shadow-md cursor-pointer"
+          className="group flex items-center justify-between rounded-3xl border-2 border-[#0f292e] bg-[#0f292e] p-5 text-left text-white shadow-md hover:bg-[#173a41] transition cursor-pointer"
         >
           <div className="flex items-center gap-4">
-            <span className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-[#0f292e] group-hover:bg-[#0f292e] group-hover:text-white transition">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-stone-950">
               <CalendarPlus className="h-7 w-7" />
             </span>
             <div>
-              <p className="text-lg font-black text-stone-900 leading-snug">
-                + Book a Room
+              <p className="text-xl font-black text-white leading-tight">
+                + Book a Room for a Guest
               </p>
-              <p className="text-xs sm:text-sm text-stone-600">
-                For phone calls &amp; WhatsApp
-              </p>
-            </div>
-          </div>
-          <ArrowRight className="h-5 w-5 text-stone-400 group-hover:text-[#0f292e] transition" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('checkin')}
-          className="group flex items-center justify-between rounded-2xl border-2 border-stone-200 bg-white p-5 text-left shadow-sm transition hover:border-[#c27d38] hover:shadow-md cursor-pointer"
-        >
-          <div className="flex items-center gap-4">
-            <span className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-[#c27d38] group-hover:bg-[#c27d38] group-hover:text-white transition">
-              <UserCheck className="h-7 w-7" />
-            </span>
-            <div>
-              <p className="text-lg font-black text-stone-900 leading-snug">
-                Check In &amp; Check Out
-              </p>
-              <p className="text-xs sm:text-sm text-stone-600">
-                Give room keys or take bill
+              <p className="text-xs sm:text-sm text-amber-200 mt-1">
+                For phone calls, WhatsApp or walk-in guests
               </p>
             </div>
           </div>
-          <ArrowRight className="h-5 w-5 text-stone-400 group-hover:text-[#c27d38] transition" />
+          <ArrowRight className="h-6 w-6 text-amber-300 group-hover:translate-x-1 transition" />
         </button>
 
         <button
           type="button"
           onClick={() => onNavigate('billing')}
-          className="group flex items-center justify-between rounded-2xl border-2 border-stone-200 bg-white p-5 text-left shadow-sm transition hover:border-emerald-700 hover:shadow-md cursor-pointer"
+          className="group flex items-center justify-between rounded-3xl border-2 border-[#c27d38] bg-[#c27d38] p-5 text-left text-white shadow-md hover:bg-[#b06d2c] transition cursor-pointer"
         >
           <div className="flex items-center gap-4">
-            <span className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 group-hover:bg-emerald-800 group-hover:text-white transition">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[#c27d38]">
               <ReceiptIndianRupee className="h-7 w-7" />
             </span>
             <div>
-              <p className="text-lg font-black text-stone-900 leading-snug">
-                Food &amp; Room Bills
+              <p className="text-xl font-black text-white leading-tight">
+                Open Food &amp; Room Bills
               </p>
-              <p className="text-xs sm:text-sm text-stone-600">
-                Add fish thali &amp; print bill
+              <p className="text-xs sm:text-sm text-amber-100 mt-1">
+                Add fish thali, tea &amp; print guest bill
               </p>
             </div>
           </div>
-          <ArrowRight className="h-5 w-5 text-stone-400 group-hover:text-emerald-800 transition" />
+          <ArrowRight className="h-6 w-6 text-white group-hover:translate-x-1 transition" />
         </button>
       </div>
 
-      {/* 7 Summary Cards in Easy English */}
-      <section aria-label="Today's Hotel Summary">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-stone-800">
-            Today&apos;s Hotel Counts
-          </h3>
-          <span className="text-xs font-semibold text-stone-500">
-            {maintenanceRooms > 0
-              ? `${maintenanceRooms} room in cleaning / repair`
-              : 'All 15 rooms working'}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-          {summaryCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <div
-                key={card.label}
-                className={`rounded-2xl border-2 p-4 transition shadow-xs ${card.tone}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 shadow-2xs">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                </div>
-                <p className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">
-                  {card.value}
-                </p>
-                <p className="mt-1 text-sm font-bold leading-tight">
-                  {card.label}
-                </p>
-                <p className="mt-0.5 text-xs opacity-75">{card.sub}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 15 Rooms Grid + Recent Bookings Register (Easy to read, senior friendly) */}
+      {/* All 15 Rooms Grid + Guest Register */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        {/* Left Side: All 15 Rooms (Spacious, Clear, Never Truncated) */}
-        <section className="rounded-2xl border-2 border-stone-200 bg-white p-5 sm:p-6 shadow-xs xl:col-span-7">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-stone-200 pb-4">
+        {/* Left Side: All 15 Rooms (Organized by Floor, Huge Cards) */}
+        <section className="rounded-3xl border-2 border-stone-200 bg-white p-5 sm:p-7 shadow-xs xl:col-span-7 space-y-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b-2 border-stone-200 pb-4">
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-display text-xl sm:text-2xl font-bold text-stone-900">
-                  All 15 Rooms: Empty or Full
-                </h3>
-                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-bold text-stone-700">
-                  15 Rooms
-                </span>
-              </div>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-stone-900">
+                All 15 Rooms: Empty or Full
+              </h3>
               <p className="text-xs sm:text-sm text-stone-600 mt-0.5">
-                Click any room to book, check in or change status
+                Green = Empty (Ready to give) • Blue = Guest Inside
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => onNavigate('rooms')}
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#0f292e] hover:underline self-start sm:self-center"
-            >
-              See Detailed Room List <ArrowRight className="h-4 w-4" />
-            </button>
+            {/* Quick Filter */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRoomFilter('ALL')}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  roomFilter === 'ALL'
+                    ? 'bg-[#0f292e] text-white shadow-2xs'
+                    : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                }`}
+              >
+                All (15)
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoomFilter('AVAILABLE')}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  roomFilter === 'AVAILABLE'
+                    ? 'bg-emerald-700 text-white shadow-2xs'
+                    : 'bg-emerald-50 text-emerald-900 border border-emerald-300 hover:bg-emerald-100'
+                }`}
+              >
+                🟢 Empty Only ({availableRooms})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoomFilter('AC')}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  roomFilter === 'AC'
+                    ? 'bg-[#0f292e] text-white shadow-2xs'
+                    : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                }`}
+              >
+                ❄️ AC ({acRooms.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoomFilter('NON_AC')}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                  roomFilter === 'NON_AC'
+                    ? 'bg-[#0f292e] text-white shadow-2xs'
+                    : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                }`}
+              >
+                🌿 Non-AC ({nonAcRooms.length})
+              </button>
+            </div>
           </div>
 
-          {/* Simple Legend with Live Counters */}
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs font-bold text-emerald-950">
-              <span className="h-3 w-3 shrink-0 rounded-full bg-emerald-600" />
-              <span>{availableRooms} Empty (Free)</span>
+          {/* Ground Floor Rooms */}
+          {groundFloorRooms.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-stone-200 text-stone-700 text-xs font-black">
+                  G
+                </span>
+                <h4 className="text-sm font-black uppercase tracking-wider text-stone-700">
+                  Ground Floor (Rooms 101 to 108)
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {groundFloorRooms.map((room) => renderRoomCard(room))}
+              </div>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-sky-50 border border-sky-300 px-3 py-2 text-xs font-bold text-sky-950">
-              <span className="h-3 w-3 shrink-0 rounded-full bg-sky-600" />
-              <span>{occupiedRooms} Guest Inside</span>
+          )}
+
+          {/* First Floor Rooms */}
+          {firstFloorRooms.length > 0 && (
+            <div className="pt-2">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-stone-200 text-stone-700 text-xs font-black">
+                  1
+                </span>
+                <h4 className="text-sm font-black uppercase tracking-wider text-stone-700">
+                  First Floor (Rooms 109 to 115)
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {firstFloorRooms.map((room) => renderRoomCard(room))}
+              </div>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-300 px-3 py-2 text-xs font-bold text-amber-950">
-              <span className="h-3 w-3 shrink-0 rounded-full bg-amber-500" />
-              <span>{bookedRooms} Booked</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl bg-stone-100 border border-stone-300 px-3 py-2 text-xs font-bold text-stone-800">
-              <span className="h-3 w-3 shrink-0 rounded-full bg-stone-500" />
-              <span>{maintenanceRooms} Cleaning</span>
-            </div>
-          </div>
+          )}
 
-          {/* Quick Filter Pills (All / Empty / AC / Non-AC) */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-stone-600">Quick Filter:</span>
-            <button
-              type="button"
-              onClick={() => setRoomFilter('ALL')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                roomFilter === 'ALL'
-                  ? 'bg-[#0f292e] text-white shadow-2xs'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-              }`}
-            >
-              Show All (15)
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoomFilter('AVAILABLE')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                roomFilter === 'AVAILABLE'
-                  ? 'bg-emerald-700 text-white shadow-2xs'
-                  : 'bg-emerald-50 text-emerald-900 border border-emerald-300 hover:bg-emerald-100'
-              }`}
-            >
-              🟢 Empty Rooms Only ({availableRooms})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoomFilter('AC')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                roomFilter === 'AC'
-                  ? 'bg-[#0f292e] text-white shadow-2xs'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-              }`}
-            >
-              ❄️ AC ({acRooms.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoomFilter('NON_AC')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                roomFilter === 'NON_AC'
-                  ? 'bg-[#0f292e] text-white shadow-2xs'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-              }`}
-            >
-              🌿 Non-AC ({nonAcRooms.length})
-            </button>
-          </div>
-
-          {/* 15 Room Cards: 3 Columns on Tablet/Desktop, Senior-Friendly Sizing */}
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {displayedRooms.map((room) => {
-              const activeGuest = roomGuestMap[room.roomNumber];
-
-              const tileStyles: Record<Room['status'], string> = {
-                Available:
-                  'border-emerald-300 bg-emerald-50/90 text-emerald-950 hover:border-emerald-500 hover:bg-emerald-100/90',
-                Booked:
-                  'border-amber-300 bg-amber-50/90 text-amber-950 hover:border-amber-500 hover:bg-amber-100/90',
-                Occupied:
-                  'border-sky-300 bg-sky-50/90 text-sky-950 hover:border-sky-500 hover:bg-sky-100/90',
-                Maintenance:
-                  'border-stone-300 bg-stone-100 text-stone-800 hover:border-stone-400 hover:bg-stone-200/90',
-              };
-
-              const categoryBadge =
-                room.category === 'AC'
-                  ? 'bg-sky-100 text-sky-900 border-sky-300'
-                  : 'bg-stone-200 text-stone-800 border-stone-300';
-
-              return (
-                <div
-                  key={room.roomNumber}
-                  className={`flex flex-col justify-between rounded-2xl border-2 p-3.5 transition shadow-xs ${tileStyles[room.status]}`}
-                >
-                  <div>
-                    {/* Top Row: Room Number + AC Badge (Always on one line) */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-black text-stone-900">
-                        Room {room.roomNumber}
-                      </span>
-                      <span
-                        className={`inline-block whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-black ${categoryBadge}`}
-                      >
-                        {room.category === 'AC' ? '❄️ AC' : '🌿 Non-AC'}
-                      </span>
-                    </div>
-
-                    {/* Middle Info: Rate or Guest Name */}
-                    <div className="mt-2.5">
-                      {room.status === 'Available' && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-bold text-emerald-800">
-                            🟢 Empty (Free to Give)
-                          </p>
-                          <p className="text-sm font-extrabold text-stone-900">
-                            ₹{room.sampleRatePerNight}
-                            <span className="text-xs font-normal text-stone-600"> / night</span>
-                          </p>
-                        </div>
-                      )}
-
-                      {room.status === 'Occupied' && (
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-sky-900">
-                            🔵 Guest Inside
-                          </p>
-                          <p className="truncate text-sm font-bold text-stone-900">
-                            {activeGuest?.guestName || 'Checked-in Guest'}
-                          </p>
-                          {activeGuest?.checkOutDate && (
-                            <p className="text-[11px] text-stone-600">
-                              Till {formatShortDate(activeGuest.checkOutDate)}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {room.status === 'Booked' && (
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-amber-900">
-                            🟡 Booked in Advance
-                          </p>
-                          <p className="truncate text-sm font-bold text-stone-900">
-                            {activeGuest?.guestName || 'Upcoming Guest'}
-                          </p>
-                          <p className="text-[11px] text-stone-600">
-                            ₹{room.sampleRatePerNight} / night
-                          </p>
-                        </div>
-                      )}
-
-                      {room.status === 'Maintenance' && (
-                        <div className="space-y-1">
-                          <p className="text-xs font-bold text-stone-800">
-                            ⚪ Cleaning / Repair
-                          </p>
-                          <p className="text-xs text-stone-600">
-                            Not ready for guest yet
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Bottom Action Button (Clear, Big Click Target) */}
-                  <div className="mt-3 border-t border-black/10 pt-2.5">
-                    {room.status === 'Available' ? (
-                      <button
-                        type="button"
-                        onClick={() => onOpenNewBooking(room.roomNumber)}
-                        className="flex w-full items-center justify-center gap-1 rounded-xl bg-emerald-700 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-800 transition cursor-pointer"
-                      >
-                        <CalendarPlus className="h-3.5 w-3.5" />
-                        + Book Room {room.roomNumber}
-                      </button>
-                    ) : room.status === 'Occupied' ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (activeGuest?.bookingId && onOpenBillingForBooking) {
-                            onOpenBillingForBooking(activeGuest.bookingId);
-                          } else {
-                            onNavigate('billing');
-                          }
-                        }}
-                        className="flex w-full items-center justify-center gap-1 rounded-xl bg-[#0f292e] py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-[#173a41] transition cursor-pointer"
-                      >
-                        <ReceiptIndianRupee className="h-3.5 w-3.5 text-amber-300" />
-                        View / Food Bill
-                      </button>
-                    ) : room.status === 'Booked' ? (
-                      <button
-                        type="button"
-                        onClick={() => onNavigate('checkin')}
-                        className="flex w-full items-center justify-center gap-1 rounded-xl bg-amber-600 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 transition cursor-pointer"
-                      >
-                        <UserCheck className="h-3.5 w-3.5" />
-                        Check In Guest
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onUpdateRoomStatus && onUpdateRoomStatus(room.roomNumber, 'Available')}
-                        className="flex w-full items-center justify-center gap-1 rounded-xl bg-stone-700 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-stone-800 transition cursor-pointer"
-                      >
-                        <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                        Mark Clean &amp; Free
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Bottom Bar: AC & Non-AC Summary */}
-          <div className="mt-4 flex flex-col gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs sm:text-sm text-stone-700 sm:flex-row sm:items-center sm:justify-between">
+          {/* Bottom Summary Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs sm:text-sm text-stone-700">
             <span>
               ❄️ <strong>AC Rooms:</strong> {acOccupied} occupied out of {acRooms.length}
             </span>
@@ -537,47 +343,38 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
         </section>
 
-        {/* Right Side: Guest Bookings Register (Clear cards, Senior-Friendly, Clean data) */}
-        <section className="rounded-2xl border-2 border-stone-200 bg-white p-5 sm:p-6 shadow-xs xl:col-span-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-stone-200 pb-4">
+        {/* Right Side: Current Guests Staying Right Now */}
+        <section className="rounded-3xl border-2 border-stone-200 bg-white p-5 sm:p-7 shadow-xs xl:col-span-5 space-y-4">
+          <div className="flex items-center justify-between border-b-2 border-stone-200 pb-4">
             <div>
               <h3 className="font-display text-xl sm:text-2xl font-bold text-stone-900">
-                Current &amp; Upcoming Guests
+                Guests Staying Right Now
               </h3>
               <p className="text-xs sm:text-sm text-stone-600 mt-0.5">
-                Guests staying right now &amp; arriving soon
+                Current guests inside your hotel
               </p>
             </div>
             <button
               type="button"
               onClick={() => onOpenNewBooking()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0f292e] px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#173a41] transition cursor-pointer self-start sm:self-center"
+              className="inline-flex items-center gap-1 rounded-xl bg-[#0f292e] px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#173a41] transition cursor-pointer"
             >
               <CalendarPlus className="h-4 w-4 text-amber-300" />
-              + New Booking
+              + New Guest
             </button>
           </div>
 
-          {/* Bookings Card List */}
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             {recentBookings.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-stone-300 p-8 text-center">
-                <p className="text-sm font-bold text-stone-700">No active bookings right now</p>
-                <button
-                  type="button"
-                  onClick={() => onOpenNewBooking()}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#0f292e] px-4 py-2 text-xs font-bold text-white"
-                >
-                  + Add First Guest Booking
-                </button>
+              <div className="rounded-2xl border-2 border-dashed border-stone-300 p-8 text-center">
+                <p className="text-sm font-bold text-stone-600">No guests currently staying</p>
               </div>
             ) : (
               recentBookings.map((b) => (
                 <div
                   key={b.id}
-                  className="rounded-2xl border-2 border-stone-200 bg-white p-4 shadow-2xs transition hover:border-[#0f292e] hover:shadow-xs"
+                  className="rounded-2xl border-2 border-stone-200 bg-white p-4 shadow-2xs hover:border-[#0f292e] transition"
                 >
-                  {/* Top Row: Name + Room + Source */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <h4 className="text-base sm:text-lg font-black text-stone-900">
@@ -611,9 +408,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     </div>
                   </div>
 
-                  {/* Middle Row: Stay Dates & Mobile Phone */}
                   <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-2 text-xs sm:text-sm text-stone-700">
-                    <span className="font-semibold">
+                    <span>
                       📅 <strong>{formatShortDate(b.checkInDate)} to {formatShortDate(b.checkOutDate)}</strong>
                     </span>
                     <a
@@ -625,39 +421,23 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     </a>
                   </div>
 
-                  {/* Bottom Action Row */}
                   <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5">
-                    {b.status === 'Checked-in' ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (onOpenBillingForBooking) {
-                            onOpenBillingForBooking(b.id);
-                          } else {
-                            onNavigate('billing');
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-[#0f292e] hover:underline"
-                      >
-                        <ReceiptIndianRupee className="h-4 w-4 text-[#c27d38]" />
-                        Add Food &amp; Print Bill →
-                      </button>
-                    ) : b.status === 'Confirmed' ? (
-                      <button
-                        type="button"
-                        onClick={() => onNavigate('checkin')}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 hover:underline"
-                      >
-                        <UserCheck className="h-4 w-4" />
-                        Check In Arriving Guest →
-                      </button>
-                    ) : (
-                      <span className="text-xs text-stone-500">
-                        {b.status}
-                      </span>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onOpenBillingForBooking) {
+                          onOpenBillingForBooking(b.id);
+                        } else {
+                          onNavigate('billing');
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-black text-[#0f292e] hover:underline cursor-pointer"
+                    >
+                      <ReceiptIndianRupee className="h-4 w-4 text-[#c27d38]" />
+                      Open Food Bill &amp; Print →
+                    </button>
 
-                    <span className="text-[11px] font-bold text-stone-500">
+                    <span className="text-xs font-bold text-stone-500">
                       ₹{b.nightlyRateSnapshot} / night
                     </span>
                   </div>
@@ -665,23 +445,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               ))
             )}
           </div>
-
-          {/* Quick Helper at Bottom */}
-          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs sm:text-sm text-amber-950">
-            <span>Want to check in an arriving guest right now?</span>
-            <button
-              type="button"
-              onClick={() => onNavigate('checkin')}
-              className="font-bold underline hover:text-amber-900 shrink-0"
-            >
-              Go to Check-In Page →
-            </button>
-          </div>
         </section>
       </div>
 
-      {/* Property Showcase with Genuine Sunshine Home Stay Photographs */}
-      <section className="overflow-hidden rounded-2xl border-2 border-stone-200 bg-white shadow-sm">
+      {/* Property Showcase with Genuine Photographs */}
+      <section className="overflow-hidden rounded-3xl border-2 border-stone-200 bg-white shadow-sm">
         <div className="grid grid-cols-1 lg:grid-cols-12">
           <div className="lg:col-span-5">
             <PropertyPhoto
@@ -714,14 +482,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
               {/* Photo Previews */}
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="overflow-hidden rounded-xl border border-stone-200">
+                <div className="overflow-hidden rounded-2xl border border-stone-200">
                   <PropertyPhoto
                     photoId="room-interior-verified"
                     customOverrides={customPhotoOverrides}
                     aspectClass="h-full min-h-[140px]"
                   />
                 </div>
-                <div className="overflow-hidden rounded-xl border border-stone-200">
+                <div className="overflow-hidden rounded-2xl border border-stone-200">
                   <PropertyPhoto
                     photoId="placeholder-dining"
                     customOverrides={customPhotoOverrides}
@@ -729,7 +497,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     slotTitle="Dining Area Photo"
                   />
                 </div>
-                <div className="overflow-hidden rounded-xl border border-stone-200">
+                <div className="overflow-hidden rounded-2xl border border-stone-200">
                   <PropertyPhoto
                     photoId="placeholder-surroundings"
                     customOverrides={customPhotoOverrides}
@@ -779,4 +547,149 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </section>
     </div>
   );
+
+  // Helper to render each room card
+  function renderRoomCard(room: Room) {
+    const activeGuest = roomGuestMap[room.roomNumber];
+
+    const tileStyles: Record<Room['status'], string> = {
+      Available:
+        'border-emerald-300 bg-emerald-50/90 text-emerald-950 hover:border-emerald-500 hover:bg-emerald-100/90',
+      Booked:
+        'border-amber-300 bg-amber-50/90 text-amber-950 hover:border-amber-500 hover:bg-amber-100/90',
+      Occupied:
+        'border-sky-300 bg-sky-50/90 text-sky-950 hover:border-sky-500 hover:bg-sky-100/90',
+      Maintenance:
+        'border-stone-300 bg-stone-100 text-stone-800 hover:border-stone-400 hover:bg-stone-200/90',
+    };
+
+    const categoryBadge =
+      room.category === 'AC'
+        ? 'bg-sky-100 text-sky-900 border-sky-300'
+        : 'bg-stone-200 text-stone-800 border-stone-300';
+
+    return (
+      <div
+        key={room.roomNumber}
+        className={`flex flex-col justify-between rounded-2xl border-2 p-4 transition shadow-xs ${tileStyles[room.status]}`}
+      >
+        <div>
+          {/* Top Row: Room Number + AC Badge */}
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-black text-stone-900">
+              Room {room.roomNumber}
+            </span>
+            <span
+              className={`inline-block whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-black ${categoryBadge}`}
+            >
+              {room.category === 'AC' ? '❄️ AC' : '🌿 Non-AC'}
+            </span>
+          </div>
+
+          {/* Middle Info */}
+          <div className="mt-2.5">
+            {room.status === 'Available' && (
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-emerald-800">
+                  🟢 Empty (Ready to Give)
+                </p>
+                <p className="text-base font-black text-stone-900">
+                  ₹{room.sampleRatePerNight}
+                  <span className="text-xs font-normal text-stone-600"> / night</span>
+                </p>
+              </div>
+            )}
+
+            {room.status === 'Occupied' && (
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-sky-900">
+                  🔵 Guest Inside
+                </p>
+                <p className="truncate text-sm font-black text-stone-900">
+                  {activeGuest?.guestName || 'Checked-in Guest'}
+                </p>
+                {activeGuest?.checkOutDate && (
+                  <p className="text-[11px] text-stone-600">
+                    Till {formatShortDate(activeGuest.checkOutDate)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {room.status === 'Booked' && (
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-amber-900">
+                  🟡 Booked in Advance
+                </p>
+                <p className="truncate text-sm font-bold text-stone-900">
+                  {activeGuest?.guestName || 'Upcoming Guest'}
+                </p>
+                <p className="text-[11px] text-stone-600">
+                  ₹{room.sampleRatePerNight} / night
+                </p>
+              </div>
+            )}
+
+            {room.status === 'Maintenance' && (
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-stone-800">
+                  ⚪ Cleaning / Repair
+                </p>
+                <p className="text-xs text-stone-600">
+                  Not ready for guest yet
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Action Button */}
+        <div className="mt-3 border-t border-black/10 pt-2.5">
+          {room.status === 'Available' ? (
+            <button
+              type="button"
+              onClick={() => onOpenNewBooking(room.roomNumber)}
+              className="flex w-full items-center justify-center gap-1 rounded-xl bg-emerald-700 py-2 text-xs font-black text-white shadow-2xs hover:bg-emerald-800 transition cursor-pointer"
+            >
+              <CalendarPlus className="h-4 w-4" />
+              + Give Room {room.roomNumber}
+            </button>
+          ) : room.status === 'Occupied' ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (activeGuest?.bookingId && onOpenBillingForBooking) {
+                  onOpenBillingForBooking(activeGuest.bookingId);
+                } else {
+                  onNavigate('billing');
+                }
+              }}
+              className="flex w-full items-center justify-center gap-1 rounded-xl bg-[#0f292e] py-2 text-xs font-black text-white shadow-2xs hover:bg-[#173a41] transition cursor-pointer"
+            >
+              <ReceiptIndianRupee className="h-4 w-4 text-amber-300" />
+              View Bill / Add Food
+            </button>
+          ) : room.status === 'Booked' ? (
+            <button
+              type="button"
+              onClick={() => onNavigate('checkin')}
+              className="flex w-full items-center justify-center gap-1 rounded-xl bg-amber-600 py-2 text-xs font-black text-white shadow-2xs hover:bg-amber-700 transition cursor-pointer"
+            >
+              <UserCheck className="h-4 w-4" />
+              Check In Guest
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onUpdateRoomStatus && onUpdateRoomStatus(room.roomNumber, 'Available')}
+              className="flex w-full items-center justify-center gap-1 rounded-xl bg-stone-700 py-2 text-xs font-black text-white shadow-2xs hover:bg-stone-800 transition cursor-pointer"
+            >
+              <Sparkles className="h-4 w-4 text-amber-300" />
+              Mark Clean &amp; Free
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 };

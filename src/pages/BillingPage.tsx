@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Minus,
   Plus,
   Printer,
+  Sparkles,
   Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
@@ -34,7 +37,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
   settings,
   selectedBookingIdForBilling,
   onUpsertBill,
-  onUpdateFoodMenuItem,
+  onUpdateFoodMenuItem: _onUpdateFoodMenuItem,
 }) => {
   // Filter out any mock test entries like fgghjdd
   const cleanBills = useMemo(
@@ -63,36 +66,16 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     [cleanBills, selectedBillId]
   );
 
-  // Filter bills list by status
-  const [billFilter, setBillFilter] = useState<'ALL' | 'UNPAID' | 'PAID'>('ALL');
-  const displayedBills = useMemo(() => {
-    return cleanBills.filter((b) => {
-      const bt = calculateBillTotals(b);
-      if (billFilter === 'UNPAID') return bt.balanceDue > 0;
-      if (billFilter === 'PAID') return bt.balanceDue <= 0;
-      return true;
-    });
-  }, [cleanBills, billFilter]);
-
-  // Food Menu category filter
-  const [foodCategory, setFoodCategory] = useState<string>('All');
-  const foodCategories = useMemo(() => {
-    const cats = Array.from(new Set(foodMenu.map((f) => f.category)));
-    return ['All', ...cats];
-  }, [foodMenu]);
-
-  const displayedFood = useMemo(() => {
-    if (foodCategory === 'All') return foodMenu;
-    return foodMenu.filter((f) => f.category === foodCategory);
-  }, [foodMenu, foodCategory]);
-
   const [invoiceBill, setInvoiceBill] = useState<Bill | null>(null);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+
+  // Custom charge inputs
   const [customDesc, setCustomDesc] = useState('');
   const [customQty, setCustomQty] = useState(1);
   const [customPrice, setCustomPrice] = useState(100);
 
-  // Quick Add / Increment Food Item
-  const addMenuItemToBill = (menuItem: FoodMenuItem) => {
+  // 1-Click: Tap dish to add to active bill
+  const handleAddFood = (menuItem: FoodMenuItem) => {
     if (!activeBill) return;
     const existing = activeBill.items.find(
       (i) => i.description === menuItem.name && i.type === 'food'
@@ -115,7 +98,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     onUpsertBill({ ...activeBill, items: updatedItems });
   };
 
-  // Change Quantity (+ / -)
+  // Change line item quantity (+ / -)
   const changeItemQuantity = (itemId: string, delta: number) => {
     if (!activeBill) return;
     const target = activeBill.items.find((i) => i.id === itemId);
@@ -133,7 +116,16 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     onUpsertBill({ ...activeBill, items: updatedItems });
   };
 
-  // Custom Extra Charge
+  // Remove item
+  const removeLineItem = (itemId: string) => {
+    if (!activeBill) return;
+    onUpsertBill({
+      ...activeBill,
+      items: activeBill.items.filter((i) => i.id !== itemId),
+    });
+  };
+
+  // Add custom extra service
   const addCustomCharge = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeBill || !customDesc.trim()) return;
@@ -150,11 +142,12 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     setCustomPrice(100);
   };
 
-  const removeLineItem = (itemId: string) => {
-    if (!activeBill) return;
+  // Mark Full Paid
+  const markFullPaid = () => {
+    if (!activeBill || !totals) return;
     onUpsertBill({
       ...activeBill,
-      items: activeBill.items.filter((i) => i.id !== itemId),
+      amountPaid: totals.grandTotal,
     });
   };
 
@@ -162,458 +155,361 @@ export const BillingPage: React.FC<BillingPageProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Friendly Notice Banner in Simple English */}
+      {/* Friendly Guide Banner */}
       <DemoNoticeBanner
-        title="Food & Room Billing (Very Easy to Use)"
-        message="1. Pick a room on the left.  2. Click '+ Add' next to any Malvani dish or tea.  3. Click 'Mark Full Paid' or 'Print Bill' on the right."
+        title="Food & Room Billing (Super Simple & Easy)"
+        message="Select a room at the top. Tap any food item (Fish Thali, Solkadhi, Tea) to add it to the bill. Click 'Guest Paid in Full' when you receive money, then click 'Print Bill' to give a receipt."
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        {/* Left Column: 1. Pick Room + 2. Add Malvani Food */}
-        <div className="space-y-6 xl:col-span-5">
-          {/* Step 1: Pick a Guest Room */}
-          <section className="rounded-2xl border-2 border-stone-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
-              <div>
-                <h3 className="font-display text-lg font-bold text-stone-900">
-                  Step 1: Pick a Guest Room
-                </h3>
-                <p className="text-xs text-stone-600">
-                  Click a room to open their bill
-                </p>
-              </div>
-              <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-bold text-stone-700">
-                {cleanBills.length} Bills
-              </span>
-            </div>
-
-            {/* Quick Filter: All / Unpaid / Paid */}
-            <div className="mt-3 flex gap-1.5 rounded-xl bg-stone-100 p-1 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setBillFilter('ALL')}
-                className={`flex-1 rounded-lg py-1.5 transition ${
-                  billFilter === 'ALL'
-                    ? 'bg-white text-stone-900 shadow-2xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                All ({cleanBills.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillFilter('UNPAID')}
-                className={`flex-1 rounded-lg py-1.5 transition ${
-                  billFilter === 'UNPAID'
-                    ? 'bg-amber-700 text-white shadow-2xs'
-                    : 'text-amber-800 hover:text-amber-950'
-                }`}
-              >
-                Money Due
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillFilter('PAID')}
-                className={`flex-1 rounded-lg py-1.5 transition ${
-                  billFilter === 'PAID'
-                    ? 'bg-emerald-700 text-white shadow-2xs'
-                    : 'text-emerald-800 hover:text-emerald-950'
-                }`}
-              >
-                Fully Paid
-              </button>
-            </div>
-
-            {/* Scrollable Bills List */}
-            <div className="mt-3.5 max-h-72 space-y-2.5 overflow-y-auto pr-1">
-              {displayedBills.length === 0 ? (
-                <p className="py-6 text-center text-xs font-medium text-stone-500">
-                  No bills in this category.
-                </p>
-              ) : (
-                displayedBills.map((bill) => {
-                  const bt = calculateBillTotals(bill);
-                  const selected = activeBill?.id === bill.id;
-                  const isDue = bt.balanceDue > 0;
-
-                  return (
-                    <button
-                      key={bill.id}
-                      type="button"
-                      onClick={() => setSelectedBillId(bill.id)}
-                      className={`w-full rounded-2xl border-2 p-3 text-left transition cursor-pointer ${
-                        selected
-                          ? 'border-[#0f292e] bg-[#0f292e] text-white shadow-md'
-                          : 'border-stone-200 bg-stone-50 text-stone-900 hover:border-stone-400 hover:bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-base font-black">
-                          Room #{bill.roomNumber}
-                        </span>
-                        <PaymentStatusBadge status={bt.derivedStatus} />
-                      </div>
-
-                      <p
-                        className={`text-sm font-bold truncate mt-0.5 ${
-                          selected ? 'text-stone-100' : 'text-stone-900'
-                        }`}
-                      >
-                        {bill.guestName}
-                      </p>
-
-                      <div
-                        className={`mt-1.5 flex items-center justify-between text-xs border-t pt-1.5 ${
-                          selected
-                            ? 'border-white/20 text-stone-200'
-                            : 'border-stone-200 text-stone-600'
-                        }`}
-                      >
-                        <span>Bill: {bill.invoiceNumber}</span>
-                        <span className="font-bold">
-                          {isDue ? (
-                            <span
-                              className={
-                                selected ? 'text-amber-300 font-extrabold' : 'text-amber-700 font-extrabold'
-                              }
-                            >
-                              Due: {formatINR(bt.balanceDue)}
-                            </span>
-                          ) : (
-                            <span
-                              className={
-                                selected ? 'text-emerald-300' : 'text-emerald-700'
-                              }
-                            >
-                              Paid: {formatINR(bt.grandTotal)}
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </section>
-
-          {/* Step 2: Add Malvani Food & Drinks */}
-          <section className="rounded-2xl border-2 border-stone-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between border-b border-stone-200 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-[#c27d38]">
-                  <UtensilsCrossed className="h-4 w-4" />
-                </span>
-                <div>
-                  <h3 className="font-display text-lg font-bold text-stone-900">
-                    Step 2: Add Malvani Food &amp; Tea
-                  </h3>
-                  <p className="text-xs text-stone-600">
-                    Tap &ldquo;+ Add&rdquo; to add to{' '}
-                    <strong>Room #{activeBill?.roomNumber ?? ''}</strong>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Category Filter Tabs */}
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {foodCategories.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setFoodCategory(cat)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
-                    foodCategory === cat
-                      ? 'bg-[#0f292e] text-white'
-                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Food Menu Items (Clean Cards, Big Tap Target) */}
-            <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
-              {displayedFood.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50/80 p-3 hover:bg-white hover:border-stone-300 transition"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-stone-900 truncate">
-                      {item.name}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <div className="flex items-center">
-                        <span className="text-xs font-black text-emerald-800">₹</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={5}
-                          value={item.samplePrice}
-                          onChange={(e) =>
-                            onUpdateFoodMenuItem({
-                              ...item,
-                              samplePrice: Math.max(0, Number(e.target.value)),
-                            })
-                          }
-                          title="Click to edit sample rate"
-                          aria-label={`Rate for ${item.name}`}
-                          className="w-14 rounded border border-stone-300 bg-white px-1.5 py-0.5 text-xs font-bold text-stone-900 text-right ml-0.5"
-                        />
-                      </div>
-                      <span className="text-[11px] text-stone-500">
-                        • {item.category}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={!activeBill}
-                    onClick={() => addMenuItemToBill(item)}
-                    className="inline-flex items-center gap-1 rounded-xl bg-[#0f292e] px-3.5 py-2 text-xs font-bold text-white shadow-2xs hover:bg-[#173a41] active:scale-[0.96] transition cursor-pointer shrink-0"
-                  >
-                    <Plus className="h-4 w-4 text-amber-300" />
-                    + Add
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Optional: Add Other Extra Service / Custom Item */}
-            <div className="mt-4 border-t border-stone-200 pt-3">
-              <p className="text-xs font-bold text-stone-700 mb-2">
-                Add Other Charge (Laundry, Extra Bed, Water, etc.):
-              </p>
-              <form
-                onSubmit={addCustomCharge}
-                className="flex flex-col sm:flex-row items-center gap-2"
-              >
-                <input
-                  type="text"
-                  value={customDesc}
-                  onChange={(e) => setCustomDesc(e.target.value)}
-                  placeholder="Item name (e.g. Extra mattress)"
-                  className="w-full sm:flex-1 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs sm:text-sm text-stone-900 focus:border-teal-700 focus:outline-none"
-                />
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="flex items-center rounded-xl border border-stone-300 bg-white px-2 py-1">
-                    <span className="text-xs font-bold text-stone-600">₹</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={10}
-                      value={customPrice}
-                      onChange={(e) => setCustomPrice(Number(e.target.value))}
-                      className="w-16 px-1 text-xs sm:text-sm font-bold text-stone-900 focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1 rounded-xl bg-stone-800 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-stone-900 transition cursor-pointer"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add
-                  </button>
-                </div>
-              </form>
-            </div>
-          </section>
+      {/* Step 1: Horizontal Room Selector Tabs (Impossible to miss, easy to click) */}
+      <section className="rounded-2xl border-2 border-stone-200 bg-white p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-stone-200 pb-3">
+          <div>
+            <h3 className="text-base sm:text-lg font-black text-stone-900">
+              1. Select a Room to View or Add Bill:
+            </h3>
+            <p className="text-xs sm:text-sm text-stone-600">
+              Click any room button below:
+            </p>
+          </div>
+          <span className="text-xs font-bold text-stone-500">
+            {cleanBills.length} Active Bills
+          </span>
         </div>
 
-        {/* Right Column: Step 3: View Bill, Mark Paid & Print Receipt */}
-        <div className="xl:col-span-7">
-          {!activeBill || !totals ? (
-            <div className="rounded-2xl border-2 border-stone-200 bg-white p-12 text-center text-sm font-medium text-stone-500">
-              Please click a guest room on the left side to see their bill.
-            </div>
-          ) : (
-            <section className="rounded-2xl border-2 border-stone-200 bg-white p-5 sm:p-6 shadow-xs space-y-5">
-              {/* Header */}
-              <div className="flex flex-col justify-between gap-4 border-b-2 border-stone-200 pb-5 sm:flex-row sm:items-center">
+        {/* Big tactile room buttons */}
+        <div className="mt-3.5 flex flex-wrap gap-2.5">
+          {cleanBills.map((bill) => {
+            const bt = calculateBillTotals(bill);
+            const selected = activeBill?.id === bill.id;
+            const isDue = bt.balanceDue > 0;
+
+            return (
+              <button
+                key={bill.id}
+                type="button"
+                onClick={() => setSelectedBillId(bill.id)}
+                className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-2.5 text-left transition cursor-pointer shadow-xs ${
+                  selected
+                    ? 'border-[#0f292e] bg-[#0f292e] text-white shadow-md'
+                    : 'border-stone-300 bg-stone-50 text-stone-900 hover:border-stone-400 hover:bg-white'
+                }`}
+              >
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-lg bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-700">
-                      Bill No: {activeBill.invoiceNumber}
-                    </span>
-                    <PaymentStatusBadge status={totals.derivedStatus} />
-                  </div>
-                  <h3 className="mt-1.5 font-display text-2xl font-bold text-stone-900">
-                    Room #{activeBill.roomNumber} — {activeBill.guestName}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-stone-600 mt-0.5">
-                    Phone: <strong>{activeBill.guestPhone}</strong> • Date: {formatFullDate(activeBill.billDate)}
+                  <p className="text-base font-black leading-tight">
+                    Room #{bill.roomNumber}
+                  </p>
+                  <p
+                    className={`text-xs font-semibold truncate max-w-[140px] ${
+                      selected ? 'text-stone-200' : 'text-stone-700'
+                    }`}
+                  >
+                    {bill.guestName}
                   </p>
                 </div>
 
-                {/* Print Bill Button (Big, Prominent, Clear) */}
-                <button
-                  type="button"
-                  onClick={() => setInvoiceBill(activeBill)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#c27d38] px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#b06d2c] active:scale-[0.98] cursor-pointer shrink-0"
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+                    isDue
+                      ? selected
+                        ? 'bg-amber-400 text-stone-950'
+                        : 'bg-amber-100 text-amber-900'
+                      : selected
+                      ? 'bg-emerald-400 text-stone-950'
+                      : 'bg-emerald-100 text-emerald-900'
+                  }`}
                 >
-                  <Printer className="h-4 w-4" />
-                  Print Guest Bill
-                </button>
-              </div>
+                  {isDue ? `Due: ${formatINR(bt.balanceDue)}` : 'Paid'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
-              {/* Room Stay Rent Section */}
-              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                <div className="flex items-center justify-between border-b border-stone-200 pb-2">
-                  <span className="text-sm font-bold text-stone-900">
-                    Room Rent Charges
-                  </span>
-                  <span className="text-base font-black text-stone-900">
-                    Total: {formatINR(totals.roomTotal)}
-                  </span>
-                </div>
-
-                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-bold text-stone-700">
-                      Stay Nights
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={activeBill.nights}
-                      onChange={(e) =>
-                        onUpsertBill({
-                          ...activeBill,
-                          nights: Math.max(1, Number(e.target.value)),
-                        })
-                      }
-                      className="w-full rounded-xl border-2 border-stone-300 bg-white px-3 py-2 text-sm font-bold text-stone-900 focus:border-teal-700 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-bold text-stone-700">
-                      Price per Night (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={50}
-                      value={activeBill.roomRatePerNight}
-                      onChange={(e) =>
-                        onUpsertBill({
-                          ...activeBill,
-                          roomRatePerNight: Math.max(0, Number(e.target.value)),
-                        })
-                      }
-                      className="w-full rounded-xl border-2 border-stone-300 bg-white px-3 py-2 text-sm font-bold text-stone-900 focus:border-teal-700 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Food & Service Items on the Bill */}
+      {/* Main Billing Paper Card (The Hero of the page) */}
+      {!activeBill || !totals ? (
+        <div className="rounded-2xl border-2 border-stone-200 bg-white p-12 text-center text-base font-medium text-stone-500">
+          Please click a room button above to view their bill.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          {/* Left / Center: The Bill Paper (Like a Real Hotel Cash Memo) */}
+          <section className="rounded-3xl border-2 border-stone-300 bg-white p-6 sm:p-8 shadow-sm lg:col-span-7 space-y-6">
+            {/* Bill Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b-2 border-stone-200 pb-5">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-bold text-stone-900">
-                    Food &amp; Extra Items Added ({activeBill.items.length})
-                  </h4>
-                  <span className="text-xs font-semibold text-stone-500">
-                    Subtotal: {formatINR(totals.foodTotal + totals.serviceTotal)}
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700">
+                    Bill #{activeBill.invoiceNumber}
                   </span>
+                  <PaymentStatusBadge status={totals.derivedStatus} />
+                </div>
+                <h2 className="mt-2 text-2xl sm:text-3xl font-black text-stone-900 font-display">
+                  Room #{activeBill.roomNumber} — {activeBill.guestName}
+                </h2>
+                <p className="text-xs sm:text-sm text-stone-600 mt-1">
+                  📞 Phone: <strong>{activeBill.guestPhone}</strong> • Date:{' '}
+                  {formatFullDate(activeBill.billDate)}
+                </p>
+              </div>
+
+              {/* Big Print Button */}
+              <button
+                type="button"
+                onClick={() => setInvoiceBill(activeBill)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#c27d38] px-6 py-3.5 text-sm sm:text-base font-black text-white shadow-md hover:bg-[#b06d2c] transition cursor-pointer shrink-0"
+              >
+                <Printer className="h-5 w-5" />
+                Print Bill (Receipt)
+              </button>
+            </div>
+
+            {/* Section 1: Room Rent */}
+            <div className="rounded-2xl border-2 border-stone-200 bg-stone-50 p-4 sm:p-5">
+              <div className="flex items-center justify-between border-b border-stone-200 pb-2">
+                <span className="text-base font-black text-stone-900">
+                  🛏️ Room Stay Rent
+                </span>
+                <span className="text-lg font-black text-stone-900">
+                  {formatINR(totals.roomTotal)}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-stone-700">
+                <div className="flex items-center gap-2">
+                  <span>Stay:</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={activeBill.nights}
+                    onChange={(e) =>
+                      onUpsertBill({
+                        ...activeBill,
+                        nights: Math.max(1, Number(e.target.value)),
+                      })
+                    }
+                    className="w-16 rounded-lg border-2 border-stone-300 bg-white px-2 py-1 text-center font-bold text-stone-900"
+                  />
+                  <span>nights</span>
                 </div>
 
-                {activeBill.items.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-stone-300 p-5 text-center text-xs sm:text-sm text-stone-500 bg-stone-50">
-                    No food or tea added yet. Tap items in Step 2 on the left.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
-                    {activeBill.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs sm:text-sm"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <span className="font-bold text-stone-900">
-                            {item.description}
-                          </span>
-                          <span className="ml-2 rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-600 uppercase">
-                            {item.type}
-                          </span>
-                        </div>
+                <div className="flex items-center gap-2">
+                  <span>Price / Night: ₹</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={50}
+                    value={activeBill.roomRatePerNight}
+                    onChange={(e) =>
+                      onUpsertBill({
+                        ...activeBill,
+                        roomRatePerNight: Math.max(0, Number(e.target.value)),
+                      })
+                    }
+                    className="w-24 rounded-lg border-2 border-stone-300 bg-white px-2 py-1 text-right font-bold text-stone-900"
+                  />
+                </div>
+              </div>
+            </div>
 
-                        {/* Quantity Increment / Decrement Controls */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center rounded-lg border border-stone-300 bg-stone-50">
-                            <button
-                              type="button"
-                              onClick={() => changeItemQuantity(item.id, -1)}
-                              className="px-2 py-1 text-stone-600 hover:bg-stone-200 hover:text-stone-900 transition"
-                              title="Decrease quantity"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </button>
-                            <span className="px-2 text-xs font-bold text-stone-900">
-                              {item.quantity}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => changeItemQuantity(item.id, 1)}
-                              className="px-2 py-1 text-stone-600 hover:bg-stone-200 hover:text-stone-900 transition"
-                              title="Increase quantity"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
-                          </div>
+            {/* Section 2: Food & Drinks on the Bill */}
+            <div>
+              <div className="flex items-center justify-between border-b border-stone-200 pb-2 mb-3">
+                <span className="text-base font-black text-stone-900">
+                  🍲 Malvani Food &amp; Tea Added ({activeBill.items.length} items)
+                </span>
+                <span className="text-base font-bold text-stone-800">
+                  Subtotal: {formatINR(totals.foodTotal + totals.serviceTotal)}
+                </span>
+              </div>
 
-                          <span className="w-20 text-right font-black text-stone-900">
-                            {formatINR(item.quantity * item.unitPrice)}
-                          </span>
+              {activeBill.items.length === 0 ? (
+                <div className="rounded-2xl border-2 border-dashed border-stone-300 p-6 text-center text-stone-500 bg-stone-50">
+                  <p className="text-sm font-semibold">
+                    No food or tea added yet.
+                  </p>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    Tap any food button on the right to add dishes to this room bill.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y-2 divide-stone-100 rounded-2xl border-2 border-stone-200 bg-white">
+                  {activeBill.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3.5 text-sm"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-stone-900 text-base">
+                          {item.description}
+                        </p>
+                        <p className="text-xs text-stone-500">
+                          ₹{item.unitPrice} each • {item.type}
+                        </p>
+                      </div>
 
+                      <div className="flex items-center gap-3">
+                        {/* Minus / Plus Quantity Buttons */}
+                        <div className="flex items-center rounded-xl border-2 border-stone-300 bg-stone-50">
                           <button
                             type="button"
-                            onClick={() => removeLineItem(item.id)}
-                            className="rounded-lg p-1.5 text-stone-400 hover:bg-rose-50 hover:text-rose-600 transition"
-                            title="Remove item"
-                            aria-label={`Remove ${item.description}`}
+                            onClick={() => changeItemQuantity(item.id, -1)}
+                            className="p-1.5 text-stone-700 hover:bg-stone-200 transition rounded-l-lg cursor-pointer"
+                            title="Minus 1"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="px-2.5 text-sm font-black text-stone-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => changeItemQuantity(item.id, 1)}
+                            className="p-1.5 text-stone-700 hover:bg-stone-200 transition rounded-r-lg cursor-pointer"
+                            title="Plus 1"
+                          >
+                            <Plus className="h-4 w-4" />
                           </button>
                         </div>
+
+                        <span className="w-20 text-right font-black text-stone-900 text-base">
+                          {formatINR(item.quantity * item.unitPrice)}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => removeLineItem(item.id)}
+                          className="rounded-lg p-1.5 text-stone-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer"
+                          title="Delete item"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 3: Totals & Cash Payment */}
+            <div className="rounded-2xl border-2 border-stone-300 bg-stone-50 p-5 space-y-3">
+              <div className="flex justify-between text-stone-700 text-sm font-semibold">
+                <span>Room Charges ({activeBill.nights} nights):</span>
+                <span>{formatINR(totals.roomTotal)}</span>
+              </div>
+              <div className="flex justify-between text-stone-700 text-sm font-semibold">
+                <span>Food &amp; Drinks Charges:</span>
+                <span>{formatINR(totals.foodTotal + totals.serviceTotal)}</span>
               </div>
 
-              {/* Bill Totals Summary & Payment */}
-              <div className="grid grid-cols-1 gap-5 border-t-2 border-stone-200 pt-5 lg:grid-cols-2">
-                {/* Left side: Discount & Payment Input */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-1 block text-xs font-bold text-stone-700">
-                      Discount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={50}
-                      value={activeBill.discountAmount}
-                      onChange={(e) =>
-                        onUpsertBill({
-                          ...activeBill,
-                          discountAmount: Math.max(0, Number(e.target.value)),
-                        })
-                      }
-                      className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-sm font-bold text-stone-900 focus:border-teal-700 focus:outline-none"
-                    />
-                  </div>
+              {totals.discount > 0 && (
+                <div className="flex justify-between text-emerald-800 text-sm font-bold">
+                  <span>Discount Given:</span>
+                  <span>-{formatINR(totals.discount)}</span>
+                </div>
+              )}
 
-                  <div>
-                    <label className="mb-1 block text-xs font-bold text-stone-700">
-                      Money Paid by Guest (₹)
-                    </label>
-                    <div className="flex gap-2">
+              <div className="flex justify-between text-stone-500 text-xs">
+                <span>Taxes / GST ({activeBill.taxPercent}%):</span>
+                <span>{formatINR(totals.taxAmount)}</span>
+              </div>
+
+              {/* Big Grand Total */}
+              <div className="flex items-center justify-between border-t-2 border-stone-300 pt-3">
+                <span className="text-xl sm:text-2xl font-black text-stone-900">
+                  TOTAL BILL:
+                </span>
+                <span className="text-2xl sm:text-3xl font-black text-[#0f292e]">
+                  {formatINR(totals.grandTotal)}
+                </span>
+              </div>
+
+              {/* Payment Status Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t-2 border-stone-200 pt-3">
+                <div>
+                  <p className="text-xs text-stone-600 font-bold">
+                    Money Received So Far:
+                  </p>
+                  <p className="text-lg font-black text-emerald-800">
+                    {formatINR(activeBill.amountPaid)}
+                  </p>
+                </div>
+
+                <div className="sm:text-right">
+                  <p className="text-xs text-stone-600 font-bold">
+                    Remaining Balance to Take:
+                  </p>
+                  <p
+                    className={`text-xl font-black ${
+                      totals.balanceDue > 0 ? 'text-amber-800' : 'text-emerald-800'
+                    }`}
+                  >
+                    {formatINR(totals.balanceDue)}
+                  </p>
+                </div>
+              </div>
+
+              {/* One-Click Full Payment Button */}
+              {totals.balanceDue > 0 ? (
+                <button
+                  type="button"
+                  onClick={markFullPaid}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 py-3.5 text-base font-black text-white shadow-md hover:bg-emerald-800 transition cursor-pointer"
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                  ✓ Guest Paid in Full ({formatINR(totals.grandTotal)})
+                </button>
+              ) : (
+                <div className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-100/90 py-3 text-sm font-black text-emerald-950 border border-emerald-300">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+                  Bill is Fully Paid! (Zero balance left)
+                </div>
+              )}
+            </div>
+
+            {/* Optional Collapsible: More Options (Discount, Custom Charges) */}
+            <div className="border-t border-stone-200 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowMoreOptions(!showMoreOptions)}
+                className="flex items-center justify-between w-full text-xs font-bold text-stone-600 hover:text-stone-900 py-1"
+              >
+                <span>
+                  ⚙️ More Options (Give Discount, Laundry, Extra Bed, Edit Cash)
+                </span>
+                {showMoreOptions ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+
+              {showMoreOptions && (
+                <div className="mt-3 space-y-4 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Discount (₹):
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={50}
+                        value={activeBill.discountAmount}
+                        onChange={(e) =>
+                          onUpsertBill({
+                            ...activeBill,
+                            discountAmount: Math.max(0, Number(e.target.value)),
+                          })
+                        }
+                        className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 mb-1">
+                        Edit Money Paid (₹):
+                      </label>
                       <input
                         type="number"
                         min={0}
@@ -624,103 +520,110 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                             amountPaid: Math.max(0, Number(e.target.value)),
                           })
                         }
-                        className="w-full rounded-xl border-2 border-stone-300 px-3.5 py-2 text-sm font-bold text-stone-900 focus:border-teal-700 focus:outline-none"
+                        className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Add Other Extra Item Form */}
+                  <form
+                    onSubmit={addCustomCharge}
+                    className="flex flex-col sm:flex-row items-center gap-2 border-t border-stone-200 pt-3"
+                  >
+                    <input
+                      type="text"
+                      value={customDesc}
+                      onChange={(e) => setCustomDesc(e.target.value)}
+                      placeholder="Other item (e.g. Extra Bed, Laundry)"
+                      className="w-full sm:flex-1 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-900"
+                    />
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                      <span className="text-xs font-bold">₹</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={customPrice}
+                        onChange={(e) => setCustomPrice(Number(e.target.value))}
+                        className="w-20 rounded-xl border border-stone-300 bg-white px-2 py-1.5 text-xs font-bold"
                       />
                       <button
-                        type="button"
-                        onClick={() =>
-                          onUpsertBill({
-                            ...activeBill,
-                            amountPaid: totals.grandTotal,
-                          })
-                        }
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100 transition cursor-pointer"
+                        type="submit"
+                        className="rounded-xl bg-stone-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-stone-900"
                       >
-                        <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-                        Full Paid
+                        + Add Extra
                       </button>
                     </div>
-                  </div>
-
-                  {/* One-Click Fully Paid Action Banner */}
-                  {totals.balanceDue > 0 ? (
-                    <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950 flex items-center justify-between">
-                      <span>Remaining: <strong>{formatINR(totals.balanceDue)}</strong></span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onUpsertBill({
-                            ...activeBill,
-                            amountPaid: totals.grandTotal,
-                          })
-                        }
-                        className="font-bold underline text-amber-900 hover:text-amber-950 cursor-pointer"
-                      >
-                        Take Full Payment Now →
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-950 flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
-                      <span>This bill is <strong>fully settled</strong>. All payments received.</span>
-                    </div>
-                  )}
+                  </form>
                 </div>
+              )}
+            </div>
+          </section>
 
-                {/* Right side: Large Totals Receipt Box */}
-                <div className="rounded-2xl border-2 border-stone-200 bg-stone-50 p-5 space-y-2.5 text-sm">
-                  <div className="flex justify-between text-stone-700">
-                    <span>Room Charges</span>
-                    <span className="font-semibold">{formatINR(totals.roomTotal)}</span>
+          {/* Right Column: 1-Click Malvani Food Menu Buttons */}
+          <section className="rounded-3xl border-2 border-stone-300 bg-white p-5 sm:p-6 shadow-sm lg:col-span-5 space-y-4">
+            <div className="flex items-center gap-2.5 border-b-2 border-stone-200 pb-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-[#c27d38]">
+                <UtensilsCrossed className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="text-lg font-black text-stone-900 font-display">
+                  Tap Any Dish to Add:
+                </h3>
+                <p className="text-xs text-stone-600">
+                  Adds directly to Room #{activeBill.roomNumber}&apos;s bill
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs font-bold text-stone-600">
+              Just tap any button below:
+            </p>
+
+            {/* Big 1-Click Food Buttons */}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
+              {foodMenu.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleAddFood(item)}
+                  className="group flex items-center justify-between rounded-2xl border-2 border-stone-200 bg-stone-50 p-3.5 text-left transition hover:border-[#0f292e] hover:bg-teal-50/50 hover:shadow-xs cursor-pointer active:scale-[0.98]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-stone-900 group-hover:text-[#0f292e]">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      {item.category}
+                    </p>
                   </div>
 
-                  <div className="flex justify-between text-stone-700">
-                    <span>Food &amp; Extra Items</span>
-                    <span className="font-semibold">
-                      {formatINR(totals.foodTotal + totals.serviceTotal)}
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <span className="text-base font-black text-emerald-800">
+                      ₹{item.samplePrice}
+                    </span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0f292e] text-amber-300 font-black text-sm group-hover:scale-105 transition">
+                      +
                     </span>
                   </div>
+                </button>
+              ))}
+            </div>
 
-                  {totals.discount > 0 && (
-                    <div className="flex justify-between text-emerald-800 font-bold">
-                      <span>Discount</span>
-                      <span>-{formatINR(totals.discount)}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between text-stone-600 text-xs">
-                    <span>GST / Taxes ({activeBill.taxPercent}%)</span>
-                    <span className="font-semibold">{formatINR(totals.taxAmount)}</span>
-                  </div>
-
-                  {/* Grand Total (Big & Bold) */}
-                  <div className="flex justify-between border-t-2 border-stone-300 pt-3 text-xl font-black text-stone-900">
-                    <span>Total Bill</span>
-                    <span className="text-2xl text-[#0f292e]">{formatINR(totals.grandTotal)}</span>
-                  </div>
-
-                  <div className="flex justify-between text-stone-700 text-xs">
-                    <span>Paid by Guest</span>
-                    <span className="font-bold text-emerald-800">{formatINR(activeBill.amountPaid)}</span>
-                  </div>
-
-                  {/* Balance Due (Crystal Clear) */}
-                  <div
-                    className={`flex justify-between border-t border-stone-300 pt-2 text-base font-black ${
-                      totals.balanceDue > 0 ? 'text-amber-900' : 'text-emerald-800'
-                    }`}
-                  >
-                    <span>{totals.balanceDue > 0 ? 'Balance to Collect' : 'Balance Due'}</span>
-                    <span>{formatINR(totals.balanceDue)}</span>
-                  </div>
-                </div>
+            {/* Menu Rate Customizer */}
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600">
+              <div className="flex items-center gap-1.5 font-bold text-stone-700">
+                <Sparkles className="h-3.5 w-3.5 text-[#c27d38]" />
+                <span>Want to edit standard food prices?</span>
               </div>
-            </section>
-          )}
+              <p className="mt-1 text-[11px] text-stone-500">
+                Food rates are sample Malvani prices. You can edit any rate in Hotel Settings.
+              </p>
+            </div>
+          </section>
         </div>
-      </div>
+      )}
 
-      {/* Printable Invoice Modal */}
+      {/* Printable Invoice Modal Preview */}
       <InvoiceModal
         bill={invoiceBill}
         settings={settings}
