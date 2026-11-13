@@ -1,11 +1,15 @@
 import type { PhotoAsset } from '../types/hms';
 
+const baseUrl = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
 export const PHOTO_ASSETS: Record<string, PhotoAsset> = {
   'exterior-main': {
     id: 'exterior-main',
     label: 'Property Exterior & Coconut Grove',
     category: 'exterior',
-    url: '/images/verified/photo-1.jpg',
+    url: `${baseUrl}images/verified/photo-1.jpg`,
     verified: true,
     sourceNote: 'Verified public listing photo (Booking.com — Sunshine Homestay, Malvan)',
     caption:
@@ -15,7 +19,7 @@ export const PHOTO_ASSETS: Record<string, PhotoAsset> = {
     id: 'room-interior-verified',
     label: 'Double Room Interior (Verified)',
     category: 'room',
-    url: '/images/verified/photo-2.jpg',
+    url: `${baseUrl}images/verified/photo-2.jpg`,
     verified: true,
     sourceNote: 'Verified public listing photo (Justdial — Sunshine Homestay, Malvan)',
     caption:
